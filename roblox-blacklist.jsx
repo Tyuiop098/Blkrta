@@ -6,6 +6,8 @@ const INITIAL_ADMINS = [{ username: "YOK0850", password: "YOK1243", role: "creat
 
 const STORAGE_KEY_ENTRIES = "rbl_entries";
 const STORAGE_KEY_ADMINS = "rbl_admins";
+const SHEET_URL =
+"https://script.google.com/macros/s/AKfycbxtMdSas27YEasvflUaYd3SbjYWEZ7H6e5jnWa7lZT6KmS7p6YhhiuNtoLJEfk8YM1x9A/exec";
 
 /* ──────────────── helpers ──────────────── */
 async function loadStorage(key, fallback) {
@@ -256,14 +258,18 @@ export default function App() {
 
   /* load persistent data */
   useEffect(() => {
-    (async () => {
-      const e = await loadStorage(STORAGE_KEY_ENTRIES, []);
-      const a = await loadStorage(STORAGE_KEY_ADMINS, INITIAL_ADMINS);
-      setEntries(e);
-      setAdmins(a);
+  fetch(SHEET_URL)
+    .then((r) => r.json())
+    .then((data) => {
+      setEntries(data);
+      setAdmins(INITIAL_ADMINS);
       setLoading(false);
-    })();
-  }, []);
+    })
+    .catch(() => {
+      setLoading(false);
+    });
+}, []);
+  
 
   const persistEntries = useCallback(async (data) => {
     setEntries(data);
@@ -448,10 +454,13 @@ function SearchPage({ entries, user, persistEntries }) {
       showAlert("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", "error"); return;
     }
     const newEntry = { id: Date.now().toString(), ...form, addedBy: user.username, addedAt: new Date().toISOString() };
-    persistEntries([...entries, newEntry]);
-    setForm({ gameName:"", rank:"", date:"", punishment:"", notes:"" });
-    showAlert("เพิ่มรายชื่อสำเร็จแล้ว");
-  };
+    fetch(SHEET_URL, {
+  method: "POST",
+  body: JSON.stringify(newEntry)
+})
+.then(() => {
+  persistEntries([...entries, newEntry]);
+});
 
   const deleteEntry = (id) => {
     if (!window.confirm("ยืนยันการลบรายชื่อนี้?")) return;
