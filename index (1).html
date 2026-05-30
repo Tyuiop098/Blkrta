@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ROBLOX BLACKLIST</title>
-    <!-- โหลด React และ ReactDOM จาก CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- โหลด Babel Standalone เพื่อให้บราวเซอร์สามารถคอมไพล์โค้ด JSX ได้ทันทีโดยไม่ต้องรัน Build -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
@@ -30,11 +28,14 @@
         // ดึง Hooks ที่จำเป็นมาจากตัวแปร Global ของ React
         const { useState, useEffect, useCallback } = React;
 
-        const CREATOR = { username: "YOK0850", password: "YOK1243", role: "creator" };
-        const INITIAL_ADMINS = [{ username: "YOK0850", password: "YOK1243", role: "creator" }];
+        const CREATOR = { username: "YOK0850", password: "YOK135018", role: "creator" };
+        const INITIAL_ADMINS = [{ username: "YOK0850", password: "YOK135018", role: "creator" }];
 
         const STORAGE_KEY_ENTRIES = "rbl_entries";
         const STORAGE_KEY_ADMINS = "rbl_admins";
+        
+        // Discord Webhook URL ของคุณ
+        const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1510266726065897632/at1jTm-Vi0StPEs60JX8_X_ce-wZtZNhxh5ZoAeaYAc-BGtx9ynln6R7w25kqCuccD_y";
 
         /* ──────────────── helpers ──────────────── */
         async function loadStorage(key, fallback) {
@@ -47,6 +48,24 @@
         }
         async function saveStorage(key, data) {
           try { await window.storage.set(key, JSON.stringify(data)); } catch {}
+        }
+
+        // ฟังก์ชันสำหรับส่งข้อมูลหา Discord Webhook ในรูปแบบ Embed สวยงาม
+        async function sendDiscordWebhook(embedData) {
+          try {
+            await fetch(DISCORD_WEBHOOK_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                embeds: [{
+                  timestamp: new Date().toISOString(),
+                  ...embedData
+                }]
+              })
+            });
+          } catch (err) {
+            console.error("ไม่สามารถส่งข้อมูลไปที่ Discord ได้:", err);
+          }
         }
 
         /* ──────────────── icons (inline SVG) ──────────────── */
@@ -439,13 +458,43 @@
             }
             const newEntry = { id: Date.now().toString(), ...form, addedBy: user.username, addedAt: new Date().toISOString() };
             persistEntries([...entries, newEntry]);
+            
+            // ส่งแจ้งเตือนไปยัง Discord เมื่อเพิ่มรายชื่อสำเร็จ
+            sendDiscordWebhook({
+              title: "➕ มีการเพิ่มรายชื่อในบัญชีดำใหม่",
+              color: 12590123, // สีแดงส้ม
+              fields: [
+                { name: "👤 ชื่อในเกม (Roblox)", value: form.gameName, inline: true },
+                { name: "🎖️ ยศ", value: form.rank, inline: true },
+                { name: "📅 วันที่ลงบัญชีดำ", value: form.date, inline: true },
+                { name: "🔨 โทษที่ได้รับ", value: form.punishment, inline: true },
+                { name: "📝 หมายเหตุ", value: form.notes || "-", inline: false },
+                { name: "🛡️ แอดมินผู้บันทึก", value: user.username, inline: true }
+              ]
+            });
+
             setForm({ gameName:"", rank:"", date:"", punishment:"", notes:"" });
             showAlert("เพิ่มรายชื่อสำเร็จแล้ว");
           };
 
           const deleteEntry = (id) => {
+            const entryToDelete = entries.find(e => e.id === id);
+            if (!entryToDelete) return;
             if (!window.confirm("ยืนยันการลบรายชื่อนี้?")) return;
+            
             persistEntries(entries.filter(e=>e.id!==id));
+
+            // ส่งแจ้งเตือนไปยัง Discord เมื่อลบรายชื่อออก
+            sendDiscordWebhook({
+              title: "🗑️ มีการลบรายชื่อออกจากบัญชีดำ",
+              color: 15158332, // สีแดงสว่าง
+              fields: [
+                { name: "👤 ชื่อในเกม (Roblox)", value: entryToDelete.gameName, inline: true },
+                { name: "🔨 โทษเดิม", value: entryToDelete.punishment, inline: true },
+                { name: "🛡️ ดำเนินการลบโดย", value: user.username, inline: true }
+              ]
+            });
+
             showAlert("ลบรายชื่อสำเร็จแล้ว");
           };
 
